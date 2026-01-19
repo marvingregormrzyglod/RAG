@@ -1,0 +1,108 @@
+modules:
+  confluence:globalPage:
+    - key: support-assist-main
+      resource: main
+      resolver:
+        function: resolver
+      title: Support Assist
+      route: hello-world
+    - key: support-assist-assertive
+      resource: assertive-main
+      resolver:
+        function: resolver
+      title: Support Assist Assertive
+      route: assertive-mode
+
+  function:
+    - key: resolver
+      handler: index.handler
+    - key: check-storage
+      handler: index.handler
+    - key: debug-load-vectors
+      handler: index.handler
+    - key: analyze-issue
+      handler: index.handler
+    - key: analyze-assertive
+      handler: index.handler
+    - key: gen-response
+      handler: index.handler
+    - key: health
+      handler: index.handler
+    - key: usage-stats
+      handler: index.handler
+    - key: get-job-status
+      handler: index.handler
+    - key: cancel-job
+      handler: index.handler
+    - key: openai-webhook
+      handler: webhooks/openaiWebhook.run
+    - key: cleanup-jobs
+      handler: handlers/cleanupJobs.run
+
+  webtrigger:
+    - key: openai-response-webhook
+      function: openai-webhook
+      response:
+        type: dynamic
+      description: Receives OpenAI response background completion notifications.
+
+  scheduledTrigger:
+    - key: nightly-job-cleanup
+      function: cleanup-jobs
+      interval: day
+
+  event:
+    - key: job-analysis-pending
+      name: Job analysis pending
+      allowedRecipients:
+        - '*'
+    - key: job-analysis-completed
+      name: Job analysis completed
+      allowedRecipients:
+        - '*'
+    - key: job-analysis-failed
+      name: Job analysis failed
+      allowedRecipients:
+        - '*'
+    - key: job-analysis-cancelled
+      name: Job analysis cancelled
+      allowedRecipients:
+        - '*'
+    - key: job-response-pending
+      name: Job response pending
+      allowedRecipients:
+        - '*'
+    - key: job-response-completed
+      name: Job response completed
+      allowedRecipients:
+        - '*'
+    - key: job-response-failed
+      name: Job response failed
+      allowedRecipients:
+        - '*'
+    - key: job-response-cancelled
+      name: Job response cancelled
+      allowedRecipients:
+        - '*'
+
+resources:
+  - key: main
+    path: static/hello-world/build
+  - key: assertive-main
+    path: static/assertive-mode/build
+
+app:
+  runtime:
+    name: nodejs22.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/00000000-0000-4000-8000-000000000000
+
+permissions:
+  scopes:
+    - storage:app
+    - read:confluence-user
+  external:
+    fetch:
+      backend:
+        - address: api.openai.com

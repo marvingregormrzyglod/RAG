@@ -1,0 +1,34 @@
+{
+  "name": "confluence-global-page-custom-ui",
+  "version": "1.1.16",
+  "main": "index.js",
+  "license": "MIT",
+  "private": true,
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "eslint-plugin-react-hooks": "^4.6.0"
+  },
+  "dependencies": {
+    "@forge/api": "^6.2.0",
+    "@forge/bridge": "^5.8.0",
+    "@forge/events": "^2.0.10",
+    "@forge/resolver": "^1.7.1",
+    "node-fetch": "^2.7.0",
+    "openai": "^4.59.0",
+    "xlsx": "^0.18.5"
+  },
+  "scripts": {
+    "prepare-kb": "node scripts/prepare-kb-for-forge.js",
+    "verify-kb": "node scripts/verify-kb-chunks.js",
+    "deploy": "npm run verify-kb && forge deploy"
+  },
+  "notes": {
+    "workflow": "1. npm run prepare-kb (generates directly in src/), 2. npm run deploy (verifies + deploys)",
+    "removed-scripts": [
+      "bundle-kb-data.js - no longer needed",
+      "rechunk-for-forge.js - no longer needed",
+      "copy-kb - no longer needed (generates directly in src/)"
+    ],
+    "kb-location": "src/knowledge-base/ - generated and deployed as static files"
+  }
+}
