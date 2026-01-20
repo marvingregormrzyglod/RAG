@@ -177,16 +177,7 @@ class OptimizedVectorSearch {
 
     if (filters.excludeAccountSpecific && !filters.identifiedAccount) {
       const accountKeywords = [
-        'barclays',
-        'reckitt benckiser',
-        'hsbc',
-        'lloyds',
-        'natwest',
-        'santander',
-        'standard chartered',
-        'vodafone',
-        'bt',
-        'ee',
+        'microsoft',
       ];
 
       filtered = filtered.filter((s) => {
