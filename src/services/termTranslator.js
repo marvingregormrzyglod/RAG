@@ -1,5 +1,5 @@
 // src/services/termTranslator.js
-// Utility that rewrites internal telecom jargon into customer-friendly wording.
+// Utility that rewrites internal jargon into customer-friendly wording.
 // Only the customer-facing Step 3 email needs this sanitisation right now, but
 // centralising the logic keeps the Forge resolver, webhook, and UI layers aligned.
 
@@ -24,9 +24,9 @@ const compiledTerms = (CUSTOMER_FRIENDLY_TERMS || [])
         ? entry.pluralFriendly.trim()
         : `${singular}s`;
 
-    // Most telecom abbreviations pluralise with a trailing "s" (MSISDN -> MSISDNs),
+    // Most abbreviations pluralise with a trailing "s" (GIF -> GIFs),
     // so the regex simply makes that suffix optional. We anchor the match with
-    // word boundaries to avoid replacing unrelated substrings (e.g., "CMSISDN").
+    // word boundaries to avoid replacing unrelated substrings.
     const pattern = new RegExp(`\\b${escapeRegex(internal)}s?\\b`, 'gi');
 
     return {
