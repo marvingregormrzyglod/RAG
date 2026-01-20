@@ -26,7 +26,7 @@ import ResponseFinalizer from './components/ResponseFinalizer';
 import UtilitiesPanel from './components/UtilitiesPanel';
 import StageProgress from './components/StageProgress';
 import numeralGlyph from './assets/1.gif';
-import wordmarkGlyph from './assets/global.png';
+import wordmarkGlyph from './assets/2.png';
 
 const COMPANY_SUMMARY = 'List your company summary here.';
 
@@ -1288,3 +1288,4 @@ function getServiceIndicator(status, isWarming) {
 }
 
 export default App;
+
