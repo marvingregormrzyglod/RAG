@@ -1,5 +1,5 @@
 // src/services/promptBuilder.js
-// Centralised prompt construction so all resolver handlers remain lean and maintainable.
+// This creates Jira-ready prompts for customer facing output, and internal company notes.
 
 export const INTERNAL_NOTE_TEMPLATE = `
 ============================================================
@@ -22,37 +22,14 @@ CUSTOMER DETAILS
 Name:             [CUSTOMER_NAME]
 Contact Email:    [CONTACT_EMAIL]
 Account Email:    [ACCOUNT_EMAIL]
-Subscription ID:  [SUBSCRIPTION_ID]
 
 
 BILLING INFORMATION
 ------------------------------------------------------------
 Payment ID:       [PAYMENT_ID]
-Correlation ID:   [CORRELATION_ID]
 Payment Date:     [PAYMENT_DATE]
 Amount:           [AMOUNT]
 Card Last 4:      [CARD_LAST4]
-
-
-TECHNICAL IDENTIFIERS
-------------------------------------------------------------
-EID:              [EID]
-ICCID:            [ICCID]
-MSISDN:           [MSISDN]
-
-
-NETWORK / GRAFANA DATA
-------------------------------------------------------------
-
-IMSI:             [IMSI]
-IMSI Type:        [IMSI_TYPE]
-COUNTRY:          [COUNTRY]
-NETWORK:          [NETWORK]
-TADIG:            [TADIG]
-MCC:              [MCC]
-MNC:              [MNC]
-LU DATE 4G:       [LU_DATE_4G]
-LU DATE VOICE:    [LU_DATE_VOICE]
 
 ============================================================
 `.trim();
@@ -81,33 +58,15 @@ General handling:
 Customer details:
 - Contact Email is the address the customer used in their outreach (ticket, chat, email). Capture it verbatim.
 - Account Email is the address stored on the customer's account profile (for example an Apple private relay). When both exist, explain the difference in the internal note summary.
-- Subscription ID values come from Salesforce. Apple Watch IDs follow the 'S-########' shape (example 'S-6652385'), while all other products use numeric strings like '90015097857'. Keep the prefix and digits exactly as provided.
 - Customer Name should match the account or subscription owner referenced in the case; if multiple names appear, pick the one tied to the supplied subscription.
 
 Billing information:
 - Payment ID follows the Stripe 'pi_' pattern (example 'pi_3OhSgVBit3S5Oi9N02qJfUnh'). Copy it exactly.
-- Correlation ID is any provided trace, GUID, or reference number outside Stripe. If none exists, leave the placeholder as "N/A".
 - Payment Date must be rendered as 'Month DD, YYYY' (example 'February 8, 2024') regardless of the incoming format. Include timezone details in the narrative if the source mentions them.
 - Amount should contain the numeric value plus currency (example '10.99 AUD'). Keep the decimal precision supplied by the billing system.
 - Card Last 4 must be four digits only (example '8978'). If a longer fragment surfaces, redact everything except the last four digits.
 
-Technical identifiers:
-- EID values are 32 digits, start with '8904', and may contain spaces or dashes that should be removed (example '89049032007108882600155708439609').
-- ICCIDs always begin with '8944' and contain 19 digits (example '8944472600003345367'). Treat any 8944-prefixed 19-digit number as an ICCID unless contradicted by the context.
-- MSISDNs are international phone numbers 10–12 digits long (example '61485916067'). Identify them by their country-code prefix and capture the digits exactly; add a leading '+' only if the source includes it.
-
-Network / Grafana data:
-- IMSI values are 15 digits (example '262420140403017'). The first three digits are the MCC, the next two digits are the MNC, and the remainder is the subscriber identifier.
-- IMSI Type is a two-letter country abbreviation such as 'DE', 'GB', 'FR', or 'AU'. Select the label paired with the IMSI in Grafana.
-- COUNTRY should be the full country name (example 'Germany', 'Australia') derived from telemetry or IMSI metadata.
-- NETWORK is the carrier providing service (example 'Vodafone', 'Telekom'). Preserve the branding capitalization seen in Grafana.
-- TADIG codes are five characters with the pattern '[A-Z]{3}[A-Z0-9]{2}' (example 'DEUD2'). Prefer the code tied to the IMSI and network combination.
-- MCC is always three digits such as '262'. Never trim leading zeros.
-- MNC is always two digits in this workflow (example '02'). If a three-digit MNC appears, flag it in the internal note narrative before copying.
-- LU DATE 4G and LU DATE VOICE represent the latest Location Update timestamps for the MSISDN in Grafana. Note the source panel and timezone if available, and set "N/A" when no telemetry exists.
-
 Disambiguation:
-- When a value could match multiple identifier types, choose the format whose length and character rules align best (for example, five alphanumeric characters indicate a TADIG code, while a three-digit block indicates an MCC).
 - If a value is inferred or partially redacted, explain the assumption in the TROUBLESHOOTING STEPS or issue overview so future readers understand the provenance.`.trim();
 
 const ASSERTIVE_FIELD_SCHEMA = `
@@ -115,44 +74,30 @@ Field taxonomy for assertive task inputs (map the "field" and "validator" to the
 - customer_name: Full name tied to the subscription owner. Accept letters, spaces, apostrophes.
 - contact_email: Email supplied in the customer's outreach. Preserve casing.
 - account_email: Email tied to the subscription account profile (Apple private relay, etc.).
-- subscription_id: Salesforce identifier. Apple Watch must retain the S- prefix followed by digits; other products use numeric strings (8-12 digits).
 - payment_id: Stripe transaction id starting with "pi_".
-- correlation_id: Free-form trace id or GUID supplied in tooling. ASCII only.
 - payment_date: Render as "Month DD, YYYY".
 - amount: Numeric + currency (e.g., "10.99 AUD").
 - card_last4: Exactly four digits from the payment instrument.
-- eid: 32 digits starting with 8904. Strip spaces/dashes.
-- iccid: 19 digits starting with 8944.
-- msisdn: 10-12 digit international number; keep country code digits included.
-- imsi: 15 digits. MCC is first 3, MNC next 2, remainder subscriber id.
-- imsi_type: Two-letter country abbreviation associated with the IMSI (e.g., DE, GB).
-- country: Full country name (e.g., "Germany").
-- network: Carrier name from Grafana (e.g., "Vodafone").
-- tadig: Five-character code [A-Z]{3}[A-Z0-9]{2}.
-- mcc: Three-digit mobile country code, preserve leading zeros.
-- mnc: Two-digit mobile network code; mention in summary if Grafana shows three digits.
-- lu_date_4g / lu_date_voice: ISO timestamps from Grafana location updates (render as received).
 
 Every expected input must reference one of the validators above so the UI can enforce formatting. Never request screenshots, uploads, or hyperlinks.`.trim();
 
 const CUSTOMER_LANGUAGE_RULES = `
 Customer-facing language rules:
-- Avoid telecom acronyms or identifiers such as IMSI, ICCID, MSISDN, EID, VoLTE, LU, TADIG, APN, IMS Registration, or similar telemetry jargon in customer emails. Translate them into plain statements like "our systems show no restrictions on this number" or "the watch can place calls".
-- Do not mention internal tools (Grafana, Salesforce, Stripe portal names) in customer-facing text; describe only the outcome.
+- Avoid acronyms or identifiers or jargon in customer emails. Translate them into plain statements.
+- Do not mention internal tools (Salesforce, Stripe portal names) in customer-facing text; describe only the outcome.
 - Keep explanations short, warm, and free from system codes or raw identifiers unless the customer explicitly provided them first.`.trim();
 
 const ASSERTIVE_TASK_RULES = `
 Assertive workflow directives:
 - The LLM is the authority. Never offer optional checklists or "choose your own action" phrasing.
-- Break work into sequential tasks that explicitly name the internal tool (Salesforce, Stripe, Grafana, Jira, Knowledge Base, Apple portal, etc.).
+- Break work into sequential tasks that explicitly name the internal tool.
 - Only create a new task when it depends on data the agent must gather manually. Everything else should be reasoned out automatically by the model.
 - Each task must explain why the data point is needed and how it feeds the resolution.
 - Keep the queue short (3-6 tasks) and focus on highest-leverage actions.
 - Tasks must never ask the agent to impersonate customers, upload files, or share screenshots. Request text confirmations only.
 - Whenever a task collects a data point covered by DATA_EXTRACTION_RULES, remind the agent of the exact expected pattern.
 - When a task depends on another, list its ids inside "blockedBy".
-- After the agent provides all required values, the model will be re-invoked. Plan the queue so the second call has everything it needs to craft the final response.
-- Technical Support (TS) escalations are disallowed in this workflow. Even if the knowledge base suggests TS, continue gathering evidence or proposing alternative internal actions instead of creating a TS task.`.trim();
+- After the agent provides all required values, the model will be re-invoked. Plan the queue so the second call has everything it needs to craft the final response.`.trim();
 
 export function buildContextAnalysisPrompt(
   {
@@ -221,7 +166,7 @@ Knowledge base matches:
 ${knowledgeBaseText}
 
 Your goals:
-0. Determine and state the exact product or partner classification (direct, partner-branded, watch, tablet, or enterprise/IoT) and mention the evidence used (subscription owner, partner logo, ICCID reference, attachment, etc.).
+0. Determine and state the exact product or partner classification and mention the evidence used.
 1. Understand what the customer needs and where the ticket stands today.
 2. Produce a concise case summary (plain text, single paragraph).
 3. Generate an internal note that follows this template exactly (ASCII only, keep spacing intact). Reproduce every heading, divider line, colon alignment, and placeholder label exactly as shown (ISSUE OVERVIEW, TROUBLESHOOTING STEPS, CUSTOMER DETAILS, etc.). ${allowOptionalNotes ? 'Once the template text is complete, you may append an "OPTIONAL NOTES" section if you need temporary scratchpad bullets.' : ''}
@@ -245,25 +190,6 @@ Output MUST be a JSON object with this exact shape:
   "knowledgeBaseArticles": []
 }
 
-Rules:
-- Follow every routing rule listed above. If the case belongs to a deflection partner, clearly decline assistance and direct the customer to that partner. If it belongs to an escalation partner, state that the ticket must be assigned to the designated escalation contact and note the internal notification.
-- Enterprise or IoT tickets must be redirected to business-support@example.com, and legacy app tickets must be redirected to the legacy support page.
-- The internal note must include every section from the template, even if fields are "N/A", and it must appear exactly as the template block (no extra headers, no "Template start/end" wrappers, no prose before or after). Do not rename headings (keep "ISSUE OVERVIEW", "TROUBLESHOOTING STEPS", etc.), do not insert additional blank sections, and keep the table-style alignment intact. ${optionalNoteGuidance}
-- All text must be ASCII (no emojis, bolding, or smart quotes).
-- The TROUBLESHOOTING STEPS section is a chronological log of actions already asked or completed, written in short bullet form.
-- Never ask customers or agents to upload screenshots; request written confirmation instead if proof is needed.
-- Agent steps must be genuine internal tasks (Salesforce lookups, Grafana checks, entitlement resets, billing reviews). Do not list future follow-ups, customer communications, or hypothetical decisions that depend on the customer replying.
-- Do not tell the agent to log into, control, or impersonate customer-owned devices or accounts; guide them to gather information using internal tools instead.
-- Use "we/our" language in every description; never use "I/me".
-- Do not include em dash characters. Use commas or periods.
-- Treat any JSON context as read-only; do not copy "Recommendation plan" blocks into the internal note.
-- Each step description must be actionable and grounded in the supplied knowledge base content.
-- If a customer step is optional, set includeInEmailByDefault to false.
-- Generate stable snake_case identifiers for step ids (e.g., "customer_reset_watch_plan").
-- Tool suggestions should reference internal tooling such as Grafana when relevant.
-- If the case is new, assume no previous troubleshooting has taken place.
-- Never escalate to Technical Support (TS), even if a knowledge base entry suggests it; document why TS was mentioned and keep ownership within this workflow.
-- If the case is ongoing, reflect the current progress and recommend the next best internal and customer actions.
 `;
 }
 
@@ -333,54 +259,8 @@ Agent findings list the internal tasks already completed (id, description, notes
 Knowledge base matches:
 ${knowledgeBaseText}
 
-Deliverables:
-1. summary - concise paragraph describing the customer issue and desired outcome.
-2. internalNote - must follow the provided template exactly. After the template block you may append an "OPTIONAL NOTES" section for temporary reasoning if helpful.
-3. taskQueue - ordered array of tasks the human must execute to gather missing data for the LLM. Shape each task as:
-   {
-     "id": "locate_subscription_salesforce",
-     "title": "Locate subscription in Salesforce",
-     "instruction": "Open Salesforce, search by the customer's contact email, and capture the subscription id so we can cancel the plan.",
-     "purpose": "Identify the correct plan so we can cancel or refund it confidently.",
-     "tool": "Salesforce",
-     "requiresHumanInput": true,
-     "expectedInputs": [
-       {
-         "field": "subscription_id",
-         "label": "Subscription ID",
-         "formatHint": "Apple Watch uses S-###### formats; other plans are numeric (see DATA_EXTRACTION_RULES).",
-         "placeholder": "S-6652385",
-         "validator": "subscription_id"
-       }
-     ],
-     "successCriteria": "Subscription id captured and confirmed to match the customer's email.",
-     "blockedBy": [],
-     "produces": ["subscription_id"]
-   }
-   - expectedInputs must be text-only and reference validators from the taxonomy above.
-   - Do NOT request values that already appear in the task description or earlier context (for example, never ask for subscription_id or contact_email if they are spelled out in the intake or the task instructions already include them).
-   - Choose validators that fit the actual work. If the task is about Grafana LU timestamps, request lu_date_4g / lu_date_voice instead of subscription_id.
-   - produces lists the data fields that will be available for the next task or re-evaluation.
-   - Keep instructions authoritative; never ask the agent what they would prefer.
-   - If the knowledge base mentions Technical Support (TS), note the reason in the summary but do NOT create a TS task. Instead, define alternative investigative or remediation steps this workflow can execute directly.
-   - Tasks must be internal actions only. Any customer-facing questions or confirmations should be represented as customerSteps so the final email can cover them.
-4. recommendationPlan - retain the existing structure with customerSteps, agentSteps, and toolSuggestions so downstream flows remain compatible. The agentSteps array should mirror the task queue (same ids and descriptions) and must never contain a Technical Support (TS) escalation step.
-5. knowledgeBaseArticles - include the KB snippets that informed the plan.
 
-Rules:
-- Do not create tasks that simply restate what the LLM can already infer.
-- Focus on Salesforce, Stripe, Grafana, and other internal systems the LLM cannot access.
-- When a required identifier is missing, create a task dedicated to capturing it and cite the validator pattern.
-- Skip any expectedInputs that duplicate identifiers already provided by the customer, intake, or task instructions.
-- Align each expected input with the real evidence needed for that task. Grafana work should request lu_date_4g / lu_date_voice or network/tadig data, while billing checks should ask for payment_id or amount—not generic subscription IDs.
-- Never ask the agent to accept screenshots or external links as evidence; request the raw identifier or textual confirmation only.
-- Keep the queue as short as possible while still ensuring the final re-analysis will succeed without further agent input.
-- All text must remain ASCII, and em dashes are prohibited.
-- Use "we/our" language in every description.
-- Always honor deflection or escalation requirements from the knowledge base for partner workflows, but never escalate to Technical Support (TS). If TS escalation is suggested, note why it was mentioned and then propose alternative investigative steps you can complete instead.
-- Ensure the internal note template stays intact and mention any missing data in the ISSUE OVERVIEW section. If you add an OPTIONAL NOTES section, place it after the template block and keep it concise.
-- Never create a task whose main outcome is "ask the customer" or "email the customer"; instead, surface those questions as customer steps (which feed the outbound response).
-- Use the agent findings supplied in the prompt to avoid duplicating work. If a task already has a completed finding (for example, subscription located, MSISDN captured), do not add it to the new queue.`.trim();
+`.trim();
 }
 
 export function buildFinalResponsePrompt(
@@ -494,26 +374,6 @@ Output MUST be JSON shaped as:
   "emailDraft": "...",
   "internalNote": "..."
 }
-
-Rules:
-- Keep every response strictly in ASCII.
-- Follow every routing rule above (deflection partners, partner escalations, enterprise redirects, legacy app redirects).
-- Respect the internal note template and ensure all placeholders are replaced with concrete values or "N/A". Output the internal note exactly as the provided template block with no extra headings, alternative section names (for example, do not replace "ISSUE OVERVIEW" with "SUBJECT" or add standalone bullet lists), or commentary outside the block.${allowOptionalNotes ? ' The sole exception is an OPTIONAL NOTES section appended after the template for temporary reasoning.' : ''}
-- Use "we/our" language exclusively; never speak in the first-person singular.
-- Never ask customers or agents to upload screenshots; rely on text confirmations.
-- Do not include em dash characters. Use commas or periods.
-- Reference only the items contained in "Internal actions marked as complete". Do not add sections such as "Agent actions pending" or describe work that has not been confirmed as finished.
-- Incorporate any notes captured in agentStepResults when they clarify the resolution or the actions already taken.
-- The email should include only customer steps flagged for inclusion.
-- Treat every JSON block provided in this prompt as read-only reference. Do not paste "Recommendation plan", "Customer steps selected", or "Internal actions" JSON into the internal note or the email.
-- The TROUBLESHOOTING STEPS portion of the internal note must log what already happened, not instructions for future agents.
-- Preserve existing TROUBLESHOOTING STEPS entries. Append new bullets chronologically and remove the placeholder line "No prior troubleshooting performed, this is a new case." only when actual steps now exist.
-- Do not delete legitimate historical troubleshooting entries when appending new ones.
-- Never direct an agent to log into, control, or impersonate customer-owned devices or accounts; rely on internal tooling and written customer confirmations instead.
-- Bake in operational empathy: acknowledge any prior inconvenience and confirm any refunds or next steps if relevant.
-- If the case is new, assume the customer has not yet received any troubleshooting steps.
-- If the case is ongoing, reference prior progress and avoid greeting the customer as if it were the first contact.
-- Do not escalate to Technical Support (TS) even if a knowledge base article suggests it; instead, describe the actions we took or the evidence we gathered ourselves.
 `;
 }
 
@@ -608,3 +468,4 @@ function buildAgentFindingsSummary(agentFindings = []) {
     })
     .join('\n');
 }
+
