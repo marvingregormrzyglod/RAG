@@ -1,7 +1,6 @@
 // scripts/prepare-kb-for-forge.js
 // Builds embeddings for the customer knowledge base and prepares Forge-ready assets.
-// This script now processes the raw Excel file directly, eliminating the legacy Python step.
-// It keeps the full article content in the search text and removes the old RP3 flag entirely.
+// This script processes raw Excel files directly.
 
 const fs = require('fs');
 const path = require('path');
@@ -169,7 +168,7 @@ function loadArticles() {
   return articles;
 }
 
-// Write a cleaned processed workbook (without truncated search_text or RP3 flag).
+
 function writeProcessedWorkbook(articles) {
   const sheetData = articles.map((article) => ({
     title: article.title,
@@ -184,7 +183,7 @@ function writeProcessedWorkbook(articles) {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'knowledge_base');
   XLSX.writeFile(workbook, PROCESSED_KB_FILE);
-  console.log(`Refreshed ${PROCESSED_KB_FILE} with ${articles.length} articles (no RP3 flag, full search_text).`);
+  console.log(`Refreshed ${PROCESSED_KB_FILE} with ${articles.length}.`);
 }
 
 // Estimate an optimal chunk size based on the serialized size of sample articles.
@@ -439,4 +438,5 @@ prepareKnowledgeBase().catch((error) => {
   console.error(error);
   process.exit(1);
 });
+
 
