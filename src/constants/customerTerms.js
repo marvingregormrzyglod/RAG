@@ -6,9 +6,7 @@
 
 export const CUSTOMER_FRIENDLY_TERMS = [
   {
-    // Engineers and billing teams insist on saying MSISDN, but customers only know this
-    // value as their phone number. We capture both the singular and plural phrasing so
-    // the translator can preserve grammar automatically.
+    // Define here internal jargon and how it should be translated for output content.
     internal: 'MSISDN',
     customerFriendly: 'phone number',
     pluralFriendly: 'phone numbers',
