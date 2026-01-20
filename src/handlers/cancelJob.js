@@ -1,6 +1,5 @@
 // src/handlers/cancelJob.js
-// Allows the UI to cancel an in-flight OpenAI background response so that we do not waste compute
-// when an agent moves on or realises the prompt needs to be adjusted.
+// Allows the UI to cancel an in-flight OpenAI background response
 
 import openaiService from '../services/openai';
 import { getJobRecord, updateJobRecord, JobStatus } from '../services/jobStore';
@@ -62,3 +61,4 @@ export default async ({ payload, context = {} }) => {
     job: sanitised,
   };
 };
+
