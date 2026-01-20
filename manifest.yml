@@ -1,11 +1,5 @@
 modules:
   confluence:globalPage:
-    - key: support-assist-main
-      resource: main
-      resolver:
-        function: resolver
-      title: Support Assist
-      route: hello-world
     - key: support-assist-assertive
       resource: assertive-main
       resolver:
@@ -86,8 +80,6 @@ modules:
         - '*'
 
 resources:
-  - key: main
-    path: static/hello-world/build
   - key: assertive-main
     path: static/assertive-mode/build
 
@@ -106,3 +98,4 @@ permissions:
     fetch:
       backend:
         - address: api.openai.com
+
