@@ -24,11 +24,7 @@
   },
   "notes": {
     "workflow": "1. npm run prepare-kb (generates directly in src/), 2. npm run deploy (verifies + deploys)",
-    "removed-scripts": [
-      "bundle-kb-data.js - no longer needed",
-      "rechunk-for-forge.js - no longer needed",
-      "copy-kb - no longer needed (generates directly in src/)"
-    ],
     "kb-location": "src/knowledge-base/ - generated and deployed as static files"
   }
 }
+
